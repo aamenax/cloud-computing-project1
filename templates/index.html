@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Command Recognition | AWS Lex & Lambda</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="aws-logo-badge">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+                </svg>
+                <span>AWS Cloud Voice Recognition</span>
+            </div>
+            <span class="badge serverless-badge">Serverless Architecture</span>
+            <span class="badge free-tier-badge">100% Free Tier ($0)</span>
+        </div>
+        <div class="header-right">
+            <div class="cloud-status" id="cloudStatus">
+                <span class="pulse-dot"></span>
+                <span id="cloudStatusText">Ready for Voice Input</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Architecture Bar Overview -->
+        <section class="arch-overview">
+            <div class="arch-step">
+                <span class="step-num">1</span>
+                <div class="step-desc">
+                    <strong>Audio Capture</strong>
+                    <small>16kHz PCM Mono</small>
+                </div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-step">
+                <span class="step-num">2</span>
+                <div class="step-desc">
+                    <strong>AWS Lex V2</strong>
+                    <small>ASR & NLU Intent</small>
+                </div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-step">
+                <span class="step-num">3</span>
+                <div class="step-desc">
+                    <strong>AWS Lambda</strong>
+                    <small>Serverless Fulfillment</small>
+                </div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-step">
+                <span class="step-num">4</span>
+                <div class="step-desc">
+                    <strong>Device Action</strong>
+                    <small>Live Execution & Polly</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace: Left is Voice & Devices, Right is Cloud Telemetry -->
+        <div class="workspace-grid">
+            
+            <!-- Left Column: Voice Interaction & Virtual Smart Devices -->
+            <div class="left-panel">
+                
+                <!-- Voice Control Console -->
+                <div class="card voice-card">
+                    <div class="card-header">
+                        <h2>🎙️ Voice Command Center</h2>
+                        <span class="status-pill" id="recordingStatus">Standby</span>
+                    </div>
+
+                    <!-- Audio Visualizer Canvas -->
+                    <div class="visualizer-container">
+                        <canvas id="waveformCanvas" width="600" height="90"></canvas>
+                        <div class="mic-button-wrapper">
+                            <button id="micBtn" class="mic-button" title="Click to Record Voice">
+                                <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                    <line x1="12" y1="19" x2="12" y2="22"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p class="voice-instruction" id="voiceInstruction">Click microphone and say: <em>"Turn on the living room light"</em></p>
+
+                    <!-- Fast Text Fallback for Classroom/Viva Demo -->
+                    <div class="text-fallback-row">
+                        <input type="text" id="textCommandInput" placeholder="Or type command here (e.g., turn off fan, set AC to 20)...">
+                        <button id="sendTextBtn" class="btn-primary">Send</button>
+                    </div>
+
+                    <!-- Quick Sample Command Chips -->
+                    <div class="sample-chips">
+                        <span class="chip-label">Try commands:</span>
+                        <button class="chip" data-cmd="turn on the living room light">💡 Turn on Living Room Light</button>
+                        <button class="chip" data-cmd="turn on the bedroom fan">🌀 Turn on Fan</button>
+                        <button class="chip" data-cmd="set the AC to 21 degrees">❄️ Set AC to 21°</button>
+                        <button class="chip" data-cmd="lock the front door">🔒 Lock Door</button>
+                        <button class="chip" data-cmd="turn off kitchen light">💡 Turn off Kitchen</button>
+                    </div>
+                </div>
+
+                <!-- Virtual Smart Devices Dashboard -->
+                <div class="card devices-card">
+                    <div class="card-header">
+                        <h2>🏠 Virtual Smart Home Devices</h2>
+                        <small class="header-subtext">Real-time state controlled by AWS Lex</small>
+                    </div>
+
+                    <div class="device-grid">
+                        <!-- Living Room Light -->
+                        <div class="device-box" id="device-living_room_light">
+                            <div class="device-icon-wrap light-icon">
+                                <div class="bulb-glow"></div>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 18h6m-4 4h2M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7Z"/>
+                                </svg>
+                            </div>
+                            <div class="device-info">
+                                <h3>Living Room Light</h3>
+                                <p class="device-room">Room: Living Room</p>
+                                <span class="device-state-pill off">OFF</span>
+                            </div>
+                        </div>
+
+                        <!-- Kitchen Light -->
+                        <div class="device-box" id="device-kitchen_light">
+                            <div class="device-icon-wrap light-icon">
+                                <div class="bulb-glow"></div>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 18h6m-4 4h2M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7Z"/>
+                                </svg>
+                            </div>
+                            <div class="device-info">
+                                <h3>Kitchen Light</h3>
+                                <p class="device-room">Room: Kitchen</p>
+                                <span class="device-state-pill off">OFF</span>
+                            </div>
+                        </div>
+
+                        <!-- Ceiling Fan -->
+                        <div class="device-box" id="device-fan">
+                            <div class="device-icon-wrap fan-icon">
+                                <svg class="fan-blades" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 9C12 5 15 2 17 2c0 3-1 7-5 7ZM15 12c4 0 7 3 7 5-3 0-7-1-7-5ZM12 15c0 4-3 7-5 7 0-3 1-7 5-7ZM9 12C5 12 2 9 2 7c3 0 7 1 7 5Z"/>
+                                </svg>
+                            </div>
+                            <div class="device-info">
+                                <h3>Ceiling Fan</h3>
+                                <p class="device-room">Room: Bedroom</p>
+                                <span class="device-state-pill off">OFF</span>
+                            </div>
+                        </div>
+
+                        <!-- Air Conditioner -->
+                        <div class="device-box" id="device-ac">
+                            <div class="device-icon-wrap ac-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z"/>
+                                    <line x1="7" y1="11" x2="7.01" y2="11"/>
+                                    <line x1="17" y1="11" x2="17.01" y2="11"/>
+                                </svg>
+                            </div>
+                            <div class="device-info">
+                                <h3>Air Conditioner</h3>
+                                <p class="device-room">Room: Living Room</p>
+                                <span class="device-state-pill off">OFF (24°C)</span>
+                            </div>
+                        </div>
+
+                        <!-- Main Door Lock -->
+                        <div class="device-box" id="device-door_lock">
+                            <div class="device-icon-wrap lock-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                            <div class="device-info">
+                                <h3>Front Door Lock</h3>
+                                <p class="device-room">Entrance</p>
+                                <span class="device-state-pill locked">LOCKED</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Cloud Telemetry & NLP Inspection -->
+            <div class="right-panel">
+                <div class="card telemetry-card">
+                    <div class="card-header">
+                        <h2>⚡ Cloud Telemetry & NLP</h2>
+                        <span class="latency-badge" id="latencyBadge">RTT: 0 ms</span>
+                    </div>
+
+                    <!-- Transcript Box (ASR) -->
+                    <div class="telemetry-section">
+                        <label class="telemetry-label">1. Automatic Speech Recognition (ASR Transcript)</label>
+                        <div class="transcript-display" id="transcriptDisplay">
+                            "Awaiting voice or text input..."
+                        </div>
+                    </div>
+
+                    <!-- Intent & Confidence (NLU) -->
+                    <div class="telemetry-section">
+                        <label class="telemetry-label">2. Classified Intent & Confidence</label>
+                        <div class="intent-row">
+                            <span class="intent-name" id="intentName">None</span>
+                            <span class="confidence-tag" id="confidenceTag">Confidence: --</span>
+                        </div>
+                    </div>
+
+                    <!-- Extracted Slots (Named Entities) -->
+                    <div class="telemetry-section">
+                        <label class="telemetry-label">3. Extracted Slots (Entities)</label>
+                        <div class="slots-container" id="slotsContainer">
+                            <span class="empty-state">No slots detected yet</span>
+                        </div>
+                    </div>
+
+                    <!-- Lambda Fulfillment & Polly Voice Output -->
+                    <div class="telemetry-section">
+                        <label class="telemetry-label">4. Lambda Execution & Spoken Response</label>
+                        <div class="fulfillment-box" id="fulfillmentBox">
+                            <p id="fulfillmentMessage">"System ready. Speak a command to trigger Lambda fulfillment."</p>
+                            <audio id="pollyAudio" controls style="display: none; width: 100%; margin-top: 8px;"></audio>
+                        </div>
+                    </div>
+
+                    <!-- Raw JSON Viewer for Professor / Academic Review -->
+                    <div class="telemetry-section">
+                        <div class="collapsible-header" id="toggleJsonBtn">
+                            <label class="telemetry-label">5. Raw AWS Lex V2 JSON Payload</label>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <pre class="json-viewer" id="rawJsonViewer">{ "status": "Awaiting initial request" }</pre>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Cloud Computing Final Project • Built with <strong>Amazon Lex V2</strong>, <strong>AWS Lambda</strong> &amp; <strong>Amazon Polly</strong> • Cost: <strong>$0 (AWS Free Tier)</strong></p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
